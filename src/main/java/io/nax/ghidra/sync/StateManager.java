@@ -1,6 +1,5 @@
 package io.nax.ghidra.sync;
 
-import ghidra.dbg.gadp.protocol.Gadp.DataType.DtCase;
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.listing.Data;
@@ -11,6 +10,8 @@ import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolIterator;
 import ghidra.program.model.symbol.SymbolTable;
 import ghidra.program.model.symbol.SymbolType;
+import ghidra.util.exception.DuplicateNameException;
+import ghidra.util.exception.InvalidInputException;
 
 public class StateManager {
 	private FlatProgramAPI api;
@@ -49,7 +50,13 @@ public class StateManager {
 			Function f = api.getFunctionAt(sym.getAddress());
 			if (f != null) {
 				r.type = f.getSignature().getPrototypeString(true);
-				f.updateFunction(null, null, null, false, null, null);
+				try {
+					f.updateFunction(null, null, null, false, null);
+				} catch(DuplicateNameException e) {
+
+				} catch (InvalidInputException e) {
+
+				}
 			}
 		} else if (sym.getSymbolType() == SymbolType.LABEL) {
 			r.labelType = 'l';
