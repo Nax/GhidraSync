@@ -1,8 +1,12 @@
 package ghidrasync;
 
+import java.util.Iterator;
+
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressIterator;
+import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.ProgramBasedDataTypeManager;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.DataIterator;
 import ghidra.program.model.listing.Function;
@@ -15,6 +19,7 @@ import ghidra.util.task.TaskMonitor;
 import ghidrasync.state.RawComment;
 import ghidrasync.state.RawData;
 import ghidrasync.state.RawFunction;
+import ghidrasync.state.RawType;
 
 public class Manager {
 	private TaskMonitor monitor;
@@ -29,11 +34,11 @@ public class Manager {
 	
 	public State export() {
 		State s = new State();
-		
+
 		exportFunctions(s);
 		exportData(s);
 		exportComments(s);
-		exportStructsUnions(s);
+		exportTypes(s);
 		
 		return s;
 	}
@@ -149,6 +154,26 @@ public class Manager {
 		}
 	}
 
+	private void exportTypes(State state) {
+		int t = program.getProgramUserData().startTransaction();
+
+		TypeMapper typeMapper = new TypeMapper(program);
+		ProgramBasedDataTypeManager typeManager = program.getDataTypeManager();
+		Iterator<DataType> iter = typeManager.getAllDataTypes();
+		while (iter.hasNext()) {
+			DataType dt = iter.next();
+			if (dt.getUniversalID() == null)
+				continue;
+			RawType rt = new RawType();
+			rt.uuid = typeMapper.getTypeUUID(dt);
+			rt.name = dt.getPathName();
+			state.types.add(rt);
+		}
+
+		typeMapper.save();
+		program.getProgramUserData().endTransaction(t);
+	}
+
 	private void exportCommentType(State state, Address a, char type, String comment) {
 		if (comment != null) {
 			RawComment rc = new RawComment();
@@ -157,9 +182,5 @@ public class Manager {
 			rc.comment = comment;
 			state.comments.add(rc);
 		}
-	}
-
-	private void exportStructsUnions(State state) {
-
 	}
 }

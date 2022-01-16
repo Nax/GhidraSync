@@ -26,7 +26,6 @@ public class TaskExport extends Task {
 		Serializer serializer = new Serializer();
 
 		State s = manager.export();
-
 		try {
 			serializer.serialize(dir, s);
 		} catch (IOException e) {

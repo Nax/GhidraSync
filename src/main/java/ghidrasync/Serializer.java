@@ -16,6 +16,7 @@ public class Serializer {
 		serializeList(dir, "functions.csv", new String[]{"addr", "prototype"}, state.funcs);
 		serializeList(dir, "data.csv", new String[]{"addr", "name", "type"}, state.data);
 		serializeList(dir, "comments.csv", new String[]{"addr", "type", "comment"}, state.comments);
+		serializeList(dir, "types.csv", new String[]{"uuid", "name"}, state.types);
 	}
 
 	private void serializeList(File dir, String filename, String[] header, Iterable<? extends ISerializable> list) throws IOException {
