@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.nax.ghidra.sync;
+package ghidrasync;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,8 +77,8 @@ public class SyncPlugin extends ProgramPlugin {
 	}
 	
 	private void syncExport(File dir) {
-		StateManager manager = new StateManager(getCurrentProgram());
-		StateSerializer serializer = new StateSerializer();
+		Manager manager = new Manager(getCurrentProgram());
+		Serializer serializer = new Serializer();
 
 		State s = manager.export();
 
