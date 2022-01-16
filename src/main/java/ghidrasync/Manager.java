@@ -1,22 +1,30 @@
 package ghidrasync;
 
 import ghidra.program.flatapi.FlatProgramAPI;
-import ghidra.program.model.listing.Function;
-import ghidra.program.model.listing.Program;
+import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressIterator;
 import ghidra.program.model.listing.Data;
+import ghidra.program.model.listing.DataIterator;
+import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionIterator;
+import ghidra.program.model.listing.Listing;
+import ghidra.program.model.listing.Program;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
-import ghidra.program.model.symbol.SymbolIterator;
-import ghidra.program.model.symbol.SymbolTable;
-import ghidra.program.model.symbol.SymbolType;
+import ghidra.util.task.TaskMonitor;
+import ghidrasync.state.RawComment;
 import ghidrasync.state.RawData;
 import ghidrasync.state.RawFunction;
 
 public class Manager {
+	private TaskMonitor monitor;
+	private Program program;
 	private FlatProgramAPI api;
 
-	Manager(Program program) {
-		api = new FlatProgramAPI(program);
+	public Manager(TaskMonitor aMonitor, Program aProgram) {
+		monitor = aMonitor;
+		program = aProgram;
+		api = new FlatProgramAPI(aProgram, aMonitor);
 	}
 	
 	public State export() {
@@ -24,27 +32,33 @@ public class Manager {
 		
 		exportFunctions(s);
 		exportData(s);
-		//exportDataTypes(s);
+		exportComments(s);
+		exportStructsUnions(s);
 		
 		return s;
 	}
 	
-	private void exportFunctions(State state) {
-		SymbolTable symTable = api.getCurrentProgram().getSymbolTable();
+	/*
+	private void exportSymbols(State state) {
+		SymbolTable symTable = program.getSymbolTable();
 		SymbolIterator it = symTable.getAllSymbols(false);
 		
 		for (Symbol s : it) {
-			if (s.getSymbolType() != SymbolType.FUNCTION)
-				continue;
 			if (s.getSource() != SourceType.USER_DEFINED)
 				continue;
-			Function func = api.getFunctionAt(s.getAddress());
-			if (func != null) {
-				RawFunction f = new RawFunction();
-				f.addr = s.getAddress().toString();
-				f.prototype = func.getSignature().getPrototypeString(true);
-				state.funcs.add(f);
+			if (s.getSymbolType() == SymbolType.FUNCTION) {
+				Function func = api.getFunctionAt(s.getAddress());
+				if (func != null) {
+					RawFunction f = new RawFunction();
+					f.addr = s.getAddress().toString();
+					f.prototype = func.getSignature().getPrototypeString(true);
+					state.funcs.add(f);
+				}
 			}
+			else if (s.getSymbolType() != SymbolType.LABEL) {
+
+			}
+
 		}
 	}
 
@@ -67,23 +81,85 @@ public class Manager {
 			}
 		}
 	}
+	*/
 
-	/*
-	private void exportDataTypes(State state) {
-		Data d = api.getFirstData();
-		
-		while (d != null)
-		{
-			DataType dt = d.getDataType();
-			if (dt != null && d.isDefined())
-			{
-				DataType sdt = new DataType();
-				sdt.address = d.getAddress().toString();
-				sdt.type = dt.getPathName();
-				state.addDataType(sdt);
-			}
-			d = api.getDataAfter(d);
+	private void exportFunctions(State state) {
+		Listing listing = program.getListing();
+		FunctionIterator iter = listing.getFunctions(true);
+
+		monitor.setIndeterminate(true);
+		monitor.setProgress(0);
+		monitor.setMessage("Exporting functions");
+	
+		for (Function f : iter) {
+			if (monitor.isCancelled())
+				return;
+			monitor.incrementProgress(1);
+			Symbol s = f.getSymbol();
+			if (s == null || s.getSource() != SourceType.USER_DEFINED)
+				continue;
+			RawFunction rf = new RawFunction();
+			rf.addr = f.getEntryPoint().toString();
+			rf.prototype = f.getSignature().getPrototypeString(true);
+			state.funcs.add(rf);
 		}
 	}
-	*/
+
+	private void exportData(State state) {
+		Listing listing = program.getListing();
+		DataIterator iter = listing.getDefinedData(true);
+
+		monitor.setIndeterminate(true);
+		monitor.setProgress(0);
+		monitor.setMessage("Exporting data");
+
+		for (Data d : iter) {
+			if (monitor.isCancelled())
+				return;
+			monitor.incrementProgress(1);
+			Symbol[] s = d.getSymbols();
+			if (s.length == 0 || s[0].getSource() != SourceType.USER_DEFINED)
+				continue;
+			RawData rd = new RawData();
+			rd.addr = d.getAddress().toString();
+			rd.name = s[0].getName();
+			rd.type = d.getDataType().getPathName();
+			state.data.add(rd);
+		}
+	}
+	
+	private void exportComments(State state) {
+		Listing listing = program.getListing();
+		AddressIterator iter = listing.getCommentAddressIterator(program.getMemory(), true);
+
+		monitor.setIndeterminate(true);
+		monitor.setProgress(0);
+		monitor.setMessage("Exporting comments");
+
+		for (Address a : iter) {
+			if (monitor.isCancelled())
+				return;
+			monitor.incrementProgress(1);
+	
+			exportCommentType(state, a, 'e', api.getEOLComment(a));
+			exportCommentType(state, a, 'b', api.getPreComment(a));
+			exportCommentType(state, a, 'a', api.getPostComment(a));
+			exportCommentType(state, a, 'r', api.getRepeatableComment(a));
+			exportCommentType(state, a, 'p', api.getPlateComment(a));
+		}
+	}
+
+	private void exportCommentType(State state, Address a, char type, String comment) {
+		if (comment != null) {
+			RawComment rc = new RawComment();
+			rc.addr = a.toString();
+			rc.type = type;
+			rc.comment = comment;
+			state.comments.add(rc);
+		}
+	}
+
+	private void exportStructsUnions(State state) {
+
+	}
 }

@@ -9,26 +9,20 @@ import java.nio.file.Path;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 
+import ghidrasync.state.ISerializable;
+
 public class Serializer {
 	public void serialize(File dir, State state) throws IOException {
-		serializeFunctions(dir, state);
-		serializeData(dir, state);
-	}
-	
-	private void serializeFunctions(File dir, State state) throws IOException {
-		var printer = createPrinter(dir, "functions.csv");
-		printer.printRecord("addr", "prototype");
-		for (var f : state.funcs) {
-			printer.printRecord(f.toRecord());
-		}
-		printer.close();
+		serializeList(dir, "functions.csv", new String[]{"addr", "prototype"}, state.funcs);
+		serializeList(dir, "data.csv", new String[]{"addr", "name", "type"}, state.data);
+		serializeList(dir, "comments.csv", new String[]{"addr", "type", "comment"}, state.comments);
 	}
 
-	private void serializeData(File dir, State state) throws IOException {
-		var printer = createPrinter(dir, "data.csv");
-		printer.printRecord("addr", "name", "type");
-		for (var f : state.data) {
-			printer.printRecord(f.toRecord());
+	private void serializeList(File dir, String filename, String[] header, Iterable<? extends ISerializable> list) throws IOException {
+		var printer = createPrinter(dir, filename);
+		printer.printRecord((Object[])header);
+		for (var x : list) {
+			printer.printRecord(x.toRecord());
 		}
 		printer.close();
 	}
