@@ -6,16 +6,16 @@ import ghidra.program.model.listing.Program;
 import ghidra.util.Msg;
 import ghidra.util.task.Task;
 import ghidra.util.task.TaskMonitor;
-import ghidrasync.StateExporter;
 import ghidrasync.Serializer;
 import ghidrasync.State;
+import ghidrasync.StateImporter;
 
-public class TaskExport extends Task {
+public class TaskImport extends Task {
     private Program program;
     private Path dir;
 
-    public TaskExport(Program aProgram, Path aDir) {
-        super("SyncPlugin - Export");
+    public TaskImport(Program aProgram, Path aDir) {
+        super("SyncPlugin - Import");
         program = aProgram;
         dir = aDir;
     }
@@ -24,11 +24,11 @@ public class TaskExport extends Task {
     public final void run(TaskMonitor mon) {
 		try {
             mon.initialize(0);
-            StateExporter exporter = new StateExporter(mon, program);
-            State s = exporter.run();
-			Serializer.serialize(dir, s);
+			State state = Serializer.deserialize(dir);
+            StateImporter importer = new StateImporter(mon, program);
+            importer.run(state);
 		} catch (Exception e) {
-			Msg.showError(this, null, "Error", e.getMessage(), e);
+            Msg.showError(this, null, "Error", e.getMessage(), e);
 		}
     }
 }

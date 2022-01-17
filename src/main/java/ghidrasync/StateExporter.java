@@ -31,18 +31,18 @@ import ghidrasync.state.RawStruct;
 import ghidrasync.state.RawStructField;
 import ghidrasync.state.RawTypedef;
 
-public class Manager {
+public class StateExporter {
 	private TaskMonitor monitor;
 	private Program program;
 	private FlatProgramAPI api;
 
-	public Manager(TaskMonitor aMonitor, Program aProgram) {
+	public StateExporter(TaskMonitor aMonitor, Program aProgram) {
 		monitor = aMonitor;
 		program = aProgram;
 		api = new FlatProgramAPI(aProgram, aMonitor);
 	}
 	
-	public State export() {
+	public State run() {
 		State s = new State();
 
 		exportFunctions(s);
@@ -52,51 +52,6 @@ public class Manager {
 		
 		return s;
 	}
-	
-	/*
-	private void exportSymbols(State state) {
-		SymbolTable symTable = program.getSymbolTable();
-		SymbolIterator it = symTable.getAllSymbols(false);
-		
-		for (Symbol s : it) {
-			if (s.getSource() != SourceType.USER_DEFINED)
-				continue;
-			if (s.getSymbolType() == SymbolType.FUNCTION) {
-				Function func = api.getFunctionAt(s.getAddress());
-				if (func != null) {
-					RawFunction f = new RawFunction();
-					f.addr = s.getAddress().toString();
-					f.prototype = func.getSignature().getPrototypeString(true);
-					state.funcs.add(f);
-				}
-			}
-			else if (s.getSymbolType() != SymbolType.LABEL) {
-
-			}
-
-		}
-	}
-
-	private void exportData(State state) {
-		SymbolTable symTable = api.getCurrentProgram().getSymbolTable();
-		SymbolIterator it = symTable.getAllSymbols(false);
-		
-		for (Symbol s : it) {
-			if (s.getSymbolType() != SymbolType.LABEL)
-				continue;
-			if (s.getSource() != SourceType.USER_DEFINED)
-				continue;
-			Data data = api.getDataAt(s.getAddress());
-			if (data != null) {
-				RawData d = new RawData();
-				d.addr = s.getAddress().toString();
-				d.name = s.getName();
-				d.type = data.getDataType().getPathName();
-				state.data.add(d);
-			}
-		}
-	}
-	*/
 
 	private void exportFunctions(State state) {
 		Listing listing = program.getListing();
@@ -115,7 +70,9 @@ public class Manager {
 				continue;
 			RawFunction rf = new RawFunction();
 			rf.addr = f.getEntryPoint().toString();
-			rf.prototype = f.getSignature().getPrototypeString(true);
+			rf.name = f.getName();
+			rf.cc = f.getCallingConventionName();
+			rf.returnType = f.getReturnType().getPathName();
 			state.funcs.add(rf);
 		}
 	}

@@ -16,6 +16,7 @@
 package ghidrasync;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import docking.ActionContext;
 import docking.action.DockingAction;
@@ -29,6 +30,7 @@ import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidrasync.tasks.TaskExport;
+import ghidrasync.tasks.TaskImport;
 
 /**
  * TODO: Provide class-level documentation that describes what this plugin does.
@@ -60,19 +62,33 @@ public class SyncPlugin extends ProgramPlugin {
 	}
 	
 	private void createActions() {
-		DockingAction action = new DockingAction("Export", getName()) {
+		DockingAction actionExport = new DockingAction("Export", getName()) {
 			@Override
 			public void actionPerformed(ActionContext context) {
-				File dir = askFile("Sync Export");
+				Path dir = askFile("Sync Export");
 				if (dir == null)
 					return;
 				tool.execute(new TaskExport(currentProgram, dir));
 			}
 		};
-		action.setMenuBarData(new MenuData(new String[] { "Sync", "Export..." }, null, "group1", MenuData.NO_MNEMONIC, "1"));
-		action.setDescription("Export the current project in text format");
-		action.setEnabled(true);
-		tool.addAction(action);
+		actionExport.setMenuBarData(new MenuData(new String[] { "Sync", "Export..." }, null, "group1", MenuData.NO_MNEMONIC, "1"));
+		actionExport.setDescription("Export the current project in text format");
+		actionExport.setEnabled(true);
+		tool.addAction(actionExport);
+
+		DockingAction actionImport = new DockingAction("Import", getName()) {
+			@Override
+			public void actionPerformed(ActionContext context) {
+				Path dir = askFile("Sync Import");
+				if (dir == null)
+					return;
+				tool.execute(new TaskImport(currentProgram, dir));
+			}
+		};
+		actionImport.setMenuBarData(new MenuData(new String[] { "Sync", "Import..." }, null, "group1", MenuData.NO_MNEMONIC, "1"));
+		actionImport.setDescription("Import a previously exported project");
+		actionImport.setEnabled(true);
+		tool.addAction(actionImport);
 	}
 	
 	/**
@@ -80,11 +96,14 @@ public class SyncPlugin extends ProgramPlugin {
 	 * @param title popup window title
 	 * @return the file chosen, or null
 	 */
-	private File askFile(final String title) {
+	private Path askFile(final String title) {
 		final GhidraFileChooser chooser = new GhidraFileChooser(tool.getActiveWindow());
 		chooser.setApproveButtonText("Ok");
 		chooser.setTitle(title);
 		chooser.setFileSelectionMode(GhidraFileChooserMode.DIRECTORIES_ONLY);
-		return chooser.getSelectedFile();
+		File f = chooser.getSelectedFile();
+		if (f == null)
+			return null;
+		return f.toPath();
 	}
 }
