@@ -1,10 +1,7 @@
 package ghidrasync.state;
 
-public class RawFunction implements ISerializable {
-    public String addr;
-    public String prototype;
-
-    public final Object[] toRecord() {
-        return new Object[]{addr, prototype};
-    }
+@Serializable(name = "functions")
+public class RawFunction {
+    @SerializableField(index = 0) public String addr;
+    @SerializableField(index = 1) public String prototype;
 }

@@ -8,12 +8,11 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressIterator;
 import ghidra.program.model.data.Composite;
 import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.Enum;
 import ghidra.program.model.data.ProgramBasedDataTypeManager;
-import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.TypeDef;
-import ghidra.program.model.data.TypedefDataType;
+import ghidra.program.model.data.Undefined;
 import ghidra.program.model.data.Union;
-import ghidra.program.model.data.UnionDataType;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.DataIterator;
 import ghidra.program.model.listing.Function;
@@ -25,8 +24,11 @@ import ghidra.program.model.symbol.Symbol;
 import ghidra.util.task.TaskMonitor;
 import ghidrasync.state.RawComment;
 import ghidrasync.state.RawData;
+import ghidrasync.state.RawEnum;
+import ghidrasync.state.RawEnumValue;
 import ghidrasync.state.RawFunction;
 import ghidrasync.state.RawStruct;
+import ghidrasync.state.RawStructField;
 import ghidrasync.state.RawTypedef;
 
 public class Manager {
@@ -197,6 +199,14 @@ public class Manager {
 				rs.size = dt.getLength();
 				rs.union = !!(dt instanceof Union);
 				state.structs.add(rs);
+				exportStructFields(state, uuid, (Composite)dt);
+			} else if (dt instanceof Enum) {
+				Enum e = (Enum)dt;
+				RawEnum re = new RawEnum();
+				re.uuid = uuid;
+				re.name = e.getPathName();
+				state.enums.add(re);
+				exportEnumValues(state, uuid, (Enum)dt);
 			} else if (dt instanceof TypeDef) {
 				TypeDef tdt = (TypeDef)dt;
 				RawTypedef rt = new RawTypedef();
@@ -209,6 +219,29 @@ public class Manager {
 
 		typeMapper.save();
 		program.getProgramUserData().endTransaction(t);
+	}
+
+	private void exportStructFields(State state, UUID uuid, Composite dt) {
+		for (var c : dt.getComponents()) {
+			if (Undefined.isUndefined(c.getDataType()))
+				continue;
+			RawStructField rsf = new RawStructField();
+			rsf.uuid = uuid;
+			rsf.name = c.getFieldName();
+			rsf.offset = c.getOffset();
+			rsf.type = c.getDataType().getPathName();
+			state.structsFields.add(rsf);
+		}
+	}
+
+	private void exportEnumValues(State state, UUID uuid, Enum e) {
+		for (String name : e.getNames()) {
+			RawEnumValue rev = new RawEnumValue();
+			rev.uuid = uuid;
+			rev.name = name;
+			rev.value = e.getValue(name);
+			state.enumsValues.add(rev);
+		}
 	}
 
 	private void exportCommentType(State state, Address a, char type, String comment) {

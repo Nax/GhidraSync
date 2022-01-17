@@ -10,7 +10,6 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.util.ObjectPropertyMap;
 import ghidra.util.ObjectStorage;
 import ghidra.util.Saveable;
-import ghidra.util.UniversalID;
 import ghidra.util.datastruct.LongArrayList;
 
 public class TypeMapper {
@@ -18,7 +17,7 @@ public class TypeMapper {
         private HashMap<Long, UUID> map;
 
         public UUIDMap() {
-            map = new HashMap<Long, UUID>();
+            map = new HashMap<>();
         }
 
         public final Class<?>[] getObjectStorageFields() {

@@ -2,14 +2,10 @@ package ghidrasync.state;
 
 import java.util.UUID;
 
-public class RawStructField implements ISerializable {
-	public UUID 	uuid;
-	public String 	name;
-	public int 		offset;
-	public String 	type;
-
-	public final Object[] toRecord() {
-		return new Object[]{uuid, name, offset, type};
-	}
+@Serializable(name = "structs_fields")
+public class RawStructField {
+	@SerializableField(index = 0) public UUID 	uuid;
+	@SerializableField(index = 1) public String	name;
+	@SerializableField(index = 2) public int	offset;
+	@SerializableField(index = 3) public String	type;
 }
-

@@ -23,11 +23,10 @@ public class TaskExport extends Task {
     public final void run(TaskMonitor mon) {
         mon.initialize(0);
 		Manager manager = new Manager(mon, program);
-		Serializer serializer = new Serializer();
 
 		State s = manager.export();
 		try {
-			serializer.serialize(dir, s);
+			Serializer.serialize(dir, s);
 		} catch (IOException e) {
 			System.err.println(e);
 		}
