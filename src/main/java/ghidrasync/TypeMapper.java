@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import ghidra.program.model.address.Address;
 import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.ProgramBasedDataTypeManager;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.util.ObjectPropertyMap;
 import ghidra.util.ObjectStorage;
@@ -78,13 +79,15 @@ public class TypeMapper {
         }
     }
 
-    private Program             program;
-    private ObjectPropertyMap   propMap;
-    private Address             mapAddr;
-    private UUIDMap             map;
+    private Program                     program;
+    private ProgramBasedDataTypeManager typeManager;
+    private ObjectPropertyMap           propMap;
+    private Address                     mapAddr;
+    private UUIDMap                     map;
 
     TypeMapper(Program aProgram) {
         program = aProgram;
+        typeManager = program.getDataTypeManager();
         propMap = program.getProgramUserData().getObjectProperty("GhidraSyncPlugin", "UUIDMap", UUIDMap.class, true);
         mapAddr = propMap.getFirstPropertyAddress();
         if (mapAddr != null) {
@@ -95,12 +98,8 @@ public class TypeMapper {
         }
     }
 
-    public UUID getTypeUUID(DataType type) {
-        UniversalID id = type.getUniversalID();
-        if (id == null) {
-            return new UUID(0, 0);
-        }
-        long key = id.getValue();
+    public UUID getUUID(DataType type) {
+        long key = typeManager.getID(type);
         UUID uuid = map.get(key);
         if (uuid == null) {
             uuid = UUID.randomUUID();
@@ -109,11 +108,8 @@ public class TypeMapper {
         return uuid;
     }
 
-    public void setTypeUUID(DataType type, UUID uuid) {
-        UniversalID id = type.getUniversalID();
-        if (id == null)
-            return;
-        long key = id.getValue();
+    public void update(DataType type, UUID uuid) {
+        long key = typeManager.getID(type);
         map.set(key, uuid);
     }
 

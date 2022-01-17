@@ -1,12 +1,19 @@
 package ghidrasync;
 
 import java.util.Iterator;
+import java.util.UUID;
 
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressIterator;
+import ghidra.program.model.data.Composite;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.ProgramBasedDataTypeManager;
+import ghidra.program.model.data.StructureDataType;
+import ghidra.program.model.data.TypeDef;
+import ghidra.program.model.data.TypedefDataType;
+import ghidra.program.model.data.Union;
+import ghidra.program.model.data.UnionDataType;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.DataIterator;
 import ghidra.program.model.listing.Function;
@@ -19,7 +26,8 @@ import ghidra.util.task.TaskMonitor;
 import ghidrasync.state.RawComment;
 import ghidrasync.state.RawData;
 import ghidrasync.state.RawFunction;
-import ghidrasync.state.RawType;
+import ghidrasync.state.RawStruct;
+import ghidrasync.state.RawTypedef;
 
 public class Manager {
 	private TaskMonitor monitor;
@@ -159,15 +167,44 @@ public class Manager {
 
 		TypeMapper typeMapper = new TypeMapper(program);
 		ProgramBasedDataTypeManager typeManager = program.getDataTypeManager();
+
+	/*
+		Iterator<Composite> iterStruct = typeManager.getAllComposites();
+		while (iterStruct.hasNext()) {
+			Composite c = iterStruct.next();
+			if (c.getUniversalID() == null)
+				continue;
+			UUID uuid = typeMapper.getUUID(c);
+			RawStruct rs = new RawStruct();
+			rs.uuid = uuid;
+			rs.name = c.getPathName();
+			rs.size = c.getLength();
+			rs.union = !!(c instanceof Union);
+			state.structs.add(rs);
+		}
+*/
 		Iterator<DataType> iter = typeManager.getAllDataTypes();
 		while (iter.hasNext()) {
 			DataType dt = iter.next();
 			if (dt.getUniversalID() == null)
 				continue;
-			RawType rt = new RawType();
-			rt.uuid = typeMapper.getTypeUUID(dt);
-			rt.name = dt.getPathName();
-			state.types.add(rt);
+			UUID uuid = typeMapper.getUUID(dt);
+			
+			if (dt instanceof Composite) {
+				RawStruct rs = new RawStruct();
+				rs.uuid = uuid;
+				rs.name = dt.getPathName();
+				rs.size = dt.getLength();
+				rs.union = !!(dt instanceof Union);
+				state.structs.add(rs);
+			} else if (dt instanceof TypeDef) {
+				TypeDef tdt = (TypeDef)dt;
+				RawTypedef rt = new RawTypedef();
+				rt.uuid = uuid;
+				rt.name = tdt.getPathName();
+				rt.typedef = tdt.getBaseDataType().getPathName();
+				state.typedefs.add(rt);
+			}
 		}
 
 		typeMapper.save();
