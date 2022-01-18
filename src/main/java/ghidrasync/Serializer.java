@@ -121,7 +121,7 @@ public class Serializer {
 		} else if (klass == UUID.class) {
 			o = UUID.fromString(value);
 		} else if (klass == boolean.class) {
-			o = (value == "t");
+			o = value.equals("t");
 		} else if (klass == long.class) {
 			o = Long.parseLong(value);
 		} else if (klass == int.class) {

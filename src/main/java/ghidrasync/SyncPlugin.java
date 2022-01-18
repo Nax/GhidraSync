@@ -29,14 +29,9 @@ import ghidra.app.plugin.ProgramPlugin;
 import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
-import ghidra.util.Msg;
 import ghidrasync.tasks.TaskExport;
 import ghidrasync.tasks.TaskImport;
 
-/**
- * TODO: Provide class-level documentation that describes what this plugin does.
- */
-//@formatter:off
 @PluginInfo(
 	status = PluginStatus.STABLE,
 	packageName = CorePluginPackage.NAME,
@@ -44,7 +39,6 @@ import ghidrasync.tasks.TaskImport;
 	shortDescription = "Import/Export commands to synchronize a ghidra project over source control",
 	description = "Import/Export commands to synchronize a ghidra project over source control"
 )
-//@formatter:on
 public class SyncPlugin extends ProgramPlugin {
 	/**
 	 * Plugin constructor.
