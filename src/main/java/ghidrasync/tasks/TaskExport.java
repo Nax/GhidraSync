@@ -2,6 +2,7 @@ package ghidrasync.tasks;
 
 import java.nio.file.Path;
 
+import ghidra.framework.plugintool.PluginTool;
 import ghidra.program.model.listing.Program;
 import ghidra.util.Msg;
 import ghidra.util.task.Task;
@@ -11,11 +12,13 @@ import ghidrasync.Serializer;
 import ghidrasync.State;
 
 public class TaskExport extends Task {
+    private PluginTool tool;
     private Program program;
     private Path dir;
 
-    public TaskExport(Program aProgram, Path aDir) {
+    public TaskExport(PluginTool aTool, Program aProgram, Path aDir) {
         super("SyncPlugin - Export");
+        tool = aTool;
         program = aProgram;
         dir = aDir;
     }
@@ -24,7 +27,7 @@ public class TaskExport extends Task {
     public final void run(TaskMonitor mon) {
 		try {
             mon.initialize(0);
-            StateExporter exporter = new StateExporter(mon, program);
+            StateExporter exporter = new StateExporter(tool, program, mon);
             State s = exporter.run();
 			Serializer.serialize(dir, s);
 		} catch (Exception e) {

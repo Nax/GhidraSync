@@ -2,7 +2,7 @@ package ghidrasync;
 
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
-import ghidra.program.flatapi.FlatProgramAPI;
+import ghidra.framework.plugintool.PluginTool;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
@@ -14,14 +14,12 @@ import ghidra.util.task.TaskMonitor;
 import ghidrasync.state.RawFunction;
 
 public class StateImporter {
-	private TaskMonitor     monitor;
-	private Program         program;
-	private FlatProgramAPI  api;
+    private TaskMonitor     monitor;
+    private Program         program;
 
-	public StateImporter(TaskMonitor aMonitor, Program aProgram) {
-		monitor = aMonitor;
+	public StateImporter(PluginTool aTool, Program aProgram, TaskMonitor aMonitor) {
 		program = aProgram;
-		api = new FlatProgramAPI(aProgram, aMonitor);
+		monitor = aMonitor;
 	}
 
     public void run(State state) {
@@ -43,7 +41,7 @@ public class StateImporter {
     
         Function f = program.getFunctionManager().getFunctionAt(addr);
         if (f == null) {
-            Msg.showError(this, null, "Error ..?", "Could not create function " + func.name);
+            Msg.showError(this, null, "Error", "Could not create function " + func.name);
         } else {
             try {
                 f.setName(func.name, SourceType.USER_DEFINED);

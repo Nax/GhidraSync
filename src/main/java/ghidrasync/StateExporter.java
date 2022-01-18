@@ -1,8 +1,12 @@
 package ghidrasync;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
+import ghidra.framework.plugintool.PluginTool;
+import ghidra.program.database.mem.FileBytes;
 import ghidra.program.flatapi.FlatProgramAPI;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressIterator;
@@ -19,14 +23,20 @@ import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
+import ghidra.program.model.mem.MemoryBlock;
+import ghidra.program.model.mem.MemoryBlockSourceInfo;
+import ghidra.program.model.mem.MemoryBlockType;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.util.task.TaskMonitor;
+import ghidrasync.exception.NotSupportedException;
+import ghidrasync.exception.SyncException;
 import ghidrasync.state.RawComment;
 import ghidrasync.state.RawData;
 import ghidrasync.state.RawEnum;
 import ghidrasync.state.RawEnumValue;
 import ghidrasync.state.RawFunction;
+import ghidrasync.state.RawMemoryBlock;
 import ghidrasync.state.RawStruct;
 import ghidrasync.state.RawStructField;
 import ghidrasync.state.RawTypedef;
@@ -36,21 +46,59 @@ public class StateExporter {
 	private Program program;
 	private FlatProgramAPI api;
 
-	public StateExporter(TaskMonitor aMonitor, Program aProgram) {
+	public StateExporter(PluginTool aTool, Program aProgram, TaskMonitor aMonitor) {
 		monitor = aMonitor;
 		program = aProgram;
 		api = new FlatProgramAPI(aProgram, aMonitor);
 	}
 	
-	public State run() {
+	public State run() throws SyncException {
 		State s = new State();
 
+		exportMemory(s);
 		exportFunctions(s);
 		exportData(s);
 		exportComments(s);
 		exportTypes(s);
 		
 		return s;
+	}
+
+	private void exportMemory(State state) throws SyncException {
+		for (MemoryBlock b : program.getMemory().getBlocks()) {
+			if (b.isMapped())
+				throw new NotSupportedException("Memory Block " + b.getName() + " is mapped.");
+
+			RawMemoryBlock rmb = new RawMemoryBlock();
+			rmb.addr = b.getStart().toString();
+			rmb.name = b.getName();
+			rmb.size = b.getSize();
+			rmb.r = b.isRead();
+			rmb.w = b.isWrite();
+			rmb.x = b.isExecute();
+			rmb.v = b.isVolatile();
+			rmb.o = b.isOverlay();
+			rmb.type = b.isInitialized() ? 'i' : 'u';
+
+			List<MemoryBlockSourceInfo> sources = b.getSourceInfos();
+			if (sources.size() > 1)
+				throw new NotSupportedException("Memory Block " + b.getName() + " has more than one source.");
+			if (sources.size() == 0)
+				throw new NotSupportedException("Memory Block " + b.getName() + " has more no source.");
+	
+			MemoryBlockSourceInfo source = sources.get(0);
+			Optional<FileBytes> ofb = source.getFileBytes();
+			if (!ofb.isPresent()) {
+				rmb.file = "";
+				rmb.fileOffset = 0;
+			} else {
+				FileBytes fb = ofb.get();
+				rmb.file = fb.getFilename();
+				rmb.fileOffset = source.getFileBytesOffset();
+			}
+
+			state.memory.add(rmb);
+		}
 	}
 
 	private void exportFunctions(State state) {
@@ -127,21 +175,6 @@ public class StateExporter {
 		TypeMapper typeMapper = new TypeMapper(program);
 		ProgramBasedDataTypeManager typeManager = program.getDataTypeManager();
 
-	/*
-		Iterator<Composite> iterStruct = typeManager.getAllComposites();
-		while (iterStruct.hasNext()) {
-			Composite c = iterStruct.next();
-			if (c.getUniversalID() == null)
-				continue;
-			UUID uuid = typeMapper.getUUID(c);
-			RawStruct rs = new RawStruct();
-			rs.uuid = uuid;
-			rs.name = c.getPathName();
-			rs.size = c.getLength();
-			rs.union = !!(c instanceof Union);
-			state.structs.add(rs);
-		}
-*/
 		Iterator<DataType> iter = typeManager.getAllDataTypes();
 		while (iter.hasNext()) {
 			DataType dt = iter.next();

@@ -37,6 +37,7 @@ public class Serializer {
 	}
 
 	private static void runList(Path dir, State state, RunFunction func) throws IOException, ReflectiveOperationException {
+		func.run(dir, RawMemoryBlock.class, state.memory);
 		func.run(dir, RawFunction.class, state.funcs);
 		func.run(dir, RawData.class, state.data);
 		func.run(dir, RawComment.class, state.comments);

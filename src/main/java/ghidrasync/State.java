@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import ghidrasync.state.*;
 
 public class State {
+	public ArrayList<RawMemoryBlock>	memory = new ArrayList<>();
 	public ArrayList<RawFunction> 		funcs = new ArrayList<>();
 	public ArrayList<RawData> 			data = new ArrayList<>();
 	public ArrayList<RawComment> 		comments = new ArrayList<>();

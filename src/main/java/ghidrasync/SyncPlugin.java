@@ -29,6 +29,7 @@ import ghidra.app.plugin.ProgramPlugin;
 import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
+import ghidra.util.Msg;
 import ghidrasync.tasks.TaskExport;
 import ghidrasync.tasks.TaskImport;
 
@@ -68,7 +69,7 @@ public class SyncPlugin extends ProgramPlugin {
 				Path dir = askFile("Sync Export");
 				if (dir == null)
 					return;
-				tool.execute(new TaskExport(currentProgram, dir));
+				tool.execute(new TaskExport(tool, currentProgram, dir));
 			}
 		};
 		actionExport.setMenuBarData(new MenuData(new String[] { "Sync", "Export..." }, null, "group1", MenuData.NO_MNEMONIC, "1"));
@@ -78,11 +79,11 @@ public class SyncPlugin extends ProgramPlugin {
 
 		DockingAction actionImport = new DockingAction("Import", getName()) {
 			@Override
-			public void actionPerformed(ActionContext context) {
+			public void actionPerformed(ActionContext context) {		
 				Path dir = askFile("Sync Import");
 				if (dir == null)
 					return;
-				tool.execute(new TaskImport(currentProgram, dir));
+				tool.execute(new TaskImport(tool, currentProgram, dir));
 			}
 		};
 		actionImport.setMenuBarData(new MenuData(new String[] { "Sync", "Import..." }, null, "group1", MenuData.NO_MNEMONIC, "1"));
