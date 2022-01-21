@@ -25,7 +25,6 @@ import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryBlockSourceInfo;
-import ghidra.program.model.mem.MemoryBlockType;
 import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.symbol.Symbol;
 import ghidra.util.task.TaskMonitor;
@@ -195,6 +194,7 @@ public class StateExporter {
 				RawEnum re = new RawEnum();
 				re.uuid = uuid;
 				re.name = e.getPathName();
+				re.size = e.getLength();
 				state.enums.add(re);
 				exportEnumValues(state, uuid, (Enum)dt);
 			} else if (dt instanceof TypeDef) {

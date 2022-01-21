@@ -1,5 +1,7 @@
 package ghidrasync;
 
+import java.nio.file.Path;
+
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
 import ghidra.app.cmd.memory.AddFileBytesMemoryBlockCmd;
@@ -10,6 +12,9 @@ import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.store.LockException;
 import ghidra.program.database.mem.FileBytes;
 import ghidra.program.model.address.Address;
+import ghidra.program.model.data.CategoryPath;
+import ghidra.program.model.data.DataType;
+import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
@@ -20,26 +25,40 @@ import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 import ghidrasync.exception.ImportException;
 import ghidrasync.exception.SyncException;
+import ghidrasync.state.RawEnum;
 import ghidrasync.state.RawFunction;
 import ghidrasync.state.RawMemoryBlock;
 
 public class StateImporter {
     private TaskMonitor     monitor;
     private Program         program;
+    private TypeMapper      typeMapper;
 
 	public StateImporter(PluginTool aTool, Program aProgram, TaskMonitor aMonitor) {
 		program = aProgram;
 		monitor = aMonitor;
+        typeMapper = null;
 	}
 
     public void run(State state) throws SyncException, LockException {
         int transaction = program.startTransaction("SyncPlugin Import");
-        for (RawMemoryBlock rmb : state.memory) {
+        int transaction2 = program.getProgramUserData().startTransaction();
+        typeMapper = new TypeMapper(program);
+        /*
+         * The order here is extremely important.
+         * First we load the memory map, because it has no dependency.
+         * Then we load enums and their values (no dependencies).
+         * Then we load structs.
+         * Then we load typedefs.
+         */
+        for (RawMemoryBlock rmb : state.memory)
             importMemory(rmb);
-        }
-        for (RawFunction rf : state.funcs) {
-            importFunction(rf);
-        }
+        for (RawEnum re : state.enums)
+            importEnum(re);
+        //for (RawFunction rf : state.funcs)
+        //    importFunction(rf);
+        typeMapper.save();
+        program.getProgramUserData().endTransaction(transaction2);
         program.endTransaction(transaction, true);
     }
 
@@ -90,6 +109,16 @@ public class StateImporter {
         }
     }
 
+    private void importEnum(RawEnum re) {
+        DataType dt = typeMapper.getType(re.uuid);
+        if (dt == null) {
+            EnumDataType e = new EnumDataType(re.name, re.size);
+            program.getDataTypeManager().addDataType(e, null);
+            typeMapper.update(e, re.uuid);
+            dt = e;
+        }
+    }
+
     private void importFunction(RawFunction func) {
         Address addr = program.getAddressFactory().getAddress(func.addr);
 
@@ -109,5 +138,17 @@ public class StateImporter {
             } catch (InvalidInputException e) {
             }
         }
+    }
+
+    static private class TypePath {
+        String          name;
+        CategoryPath    path;
+    }
+
+    private TypePath parseTypePath(String type) {
+        Path p = Path.of(type);
+        TypePath tp;
+        tp.name = p.getFileName().toString();
+
     }
 }

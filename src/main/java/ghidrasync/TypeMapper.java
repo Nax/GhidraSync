@@ -15,9 +15,11 @@ import ghidra.util.datastruct.LongArrayList;
 public class TypeMapper {
     public static class UUIDMap implements Saveable {
         private HashMap<Long, UUID> map;
+        private HashMap<UUID, Long> mapReverse;
 
         public UUIDMap() {
             map = new HashMap<>();
+            mapReverse = new HashMap<>();
         }
 
         public final Class<?>[] getObjectStorageFields() {
@@ -46,6 +48,7 @@ public class TypeMapper {
                 long k = keys[i];
                 UUID v = new UUID(hi[i], lo[i]);
                 map.put(k, v);
+                mapReverse.put(v, k);
             }
         }
 
@@ -69,12 +72,17 @@ public class TypeMapper {
             return false;
         }
 
-        public UUID get(long key) {
+        public UUID getUUID(long key) {
             return map.get(key);
+        }
+
+        public Long getTypeID(UUID uuid) {
+            return mapReverse.get(uuid);
         }
 
         public void set(long key, UUID value) {
             map.put(key, value);
+            mapReverse.put(value, key);
         }
     }
 
@@ -99,12 +107,19 @@ public class TypeMapper {
 
     public UUID getUUID(DataType type) {
         long key = typeManager.getID(type);
-        UUID uuid = map.get(key);
+        UUID uuid = map.getUUID(key);
         if (uuid == null) {
             uuid = UUID.randomUUID();
             map.set(key, uuid);
         }
         return uuid;
+    }
+
+    public DataType getType(UUID uuid) {
+        Long key = map.getTypeID(uuid);
+        if (key == null)
+            return null;
+        return typeManager.getDataType(key);
     }
 
     public void update(DataType type, UUID uuid) {
