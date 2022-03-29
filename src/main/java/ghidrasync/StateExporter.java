@@ -17,6 +17,7 @@ import ghidra.program.model.data.ProgramBasedDataTypeManager;
 import ghidra.program.model.data.TypeDef;
 import ghidra.program.model.data.Undefined;
 import ghidra.program.model.data.Union;
+import ghidra.program.model.data.FunctionDefinition;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.DataIterator;
 import ghidra.program.model.listing.Function;
@@ -35,6 +36,7 @@ import ghidrasync.state.RawData;
 import ghidrasync.state.RawEnum;
 import ghidrasync.state.RawEnumValue;
 import ghidrasync.state.RawFunction;
+import ghidrasync.state.RawFunctionType;
 import ghidrasync.state.RawMemoryBlock;
 import ghidrasync.state.RawStruct;
 import ghidrasync.state.RawStructField;
@@ -204,6 +206,14 @@ public class StateExporter {
 				rt.name = tdt.getPathName();
 				rt.typedef = tdt.getBaseDataType().getPathName();
 				state.typedefs.add(rt);
+			} else if (dt instanceof FunctionDefinition) {
+				FunctionDefinition fd = (FunctionDefinition)dt;
+				RawFunctionType rft = new RawFunctionType();
+				rft.uuid = uuid;
+				rft.name = fd.getPathName();
+				rft.cc = fd.getGenericCallingConvention().name();
+				rft.returnType = fd.getReturnType().getPathName();
+				state.functypes.add(rft);
 			}
 		}
 

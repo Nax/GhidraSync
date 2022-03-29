@@ -13,4 +13,5 @@ public class State {
 	public ArrayList<RawEnum> 			enums = new ArrayList<>();
 	public ArrayList<RawEnumValue> 		enumsValues = new ArrayList<>();
 	public ArrayList<RawTypedef> 		typedefs = new ArrayList<>();
+	public ArrayList<RawFunctionType>	functypes = new ArrayList<>();
 }

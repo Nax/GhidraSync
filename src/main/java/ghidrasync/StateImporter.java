@@ -139,16 +139,4 @@ public class StateImporter {
             }
         }
     }
-
-    static private class TypePath {
-        String          name;
-        CategoryPath    path;
-    }
-
-    private TypePath parseTypePath(String type) {
-        Path p = Path.of(type);
-        TypePath tp;
-        tp.name = p.getFileName().toString();
-
-    }
 }
