@@ -18,11 +18,13 @@ import ghidra.program.model.data.TypeDef;
 import ghidra.program.model.data.Undefined;
 import ghidra.program.model.data.Union;
 import ghidra.program.model.data.FunctionDefinition;
+import ghidra.program.model.data.ParameterDefinition;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.DataIterator;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionIterator;
 import ghidra.program.model.listing.Listing;
+import ghidra.program.model.listing.Parameter;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.mem.MemoryBlockSourceInfo;
@@ -31,16 +33,7 @@ import ghidra.program.model.symbol.Symbol;
 import ghidra.util.task.TaskMonitor;
 import ghidrasync.exception.NotSupportedException;
 import ghidrasync.exception.SyncException;
-import ghidrasync.state.RawComment;
-import ghidrasync.state.RawData;
-import ghidrasync.state.RawEnum;
-import ghidrasync.state.RawEnumValue;
-import ghidrasync.state.RawFunction;
-import ghidrasync.state.RawFunctionType;
-import ghidrasync.state.RawMemoryBlock;
-import ghidrasync.state.RawStruct;
-import ghidrasync.state.RawStructField;
-import ghidrasync.state.RawTypedef;
+import ghidrasync.state.*;
 
 public class StateExporter {
 	private TaskMonitor monitor;
@@ -123,6 +116,21 @@ public class StateExporter {
 			rf.cc = f.getCallingConventionName();
 			rf.returnType = f.getReturnType().getPathName();
 			state.funcs.add(rf);
+			exportFunctionParams(state, f);
+		}
+	}
+
+	private void exportFunctionParams(State state, Function f) {
+		for (int i = 0; i < f.getParameterCount(); ++i) {
+			Parameter param = f.getParameter(i);
+			if (param.isAutoParameter() || param.getSource() != SourceType.USER_DEFINED)
+				continue;
+			RawFunctionParam p = new RawFunctionParam();
+			p.addr = f.getEntryPoint().toString();
+			p.ord = i;
+			p.type = param.getDataType().getPathName();
+			p.name = param.getName();
+			state.funcsParams.add(p);
 		}
 	}
 
@@ -214,11 +222,25 @@ public class StateExporter {
 				rft.cc = fd.getGenericCallingConvention().name();
 				rft.returnType = fd.getReturnType().getPathName();
 				state.functypes.add(rft);
+				exportFunctionTypeParams(state, uuid, fd);
 			}
 		}
 
 		typeMapper.save();
 		program.getProgramUserData().endTransaction(t);
+	}
+
+	private void exportFunctionTypeParams(State state, UUID uuid, FunctionDefinition f) {
+		ParameterDefinition[] params = f.getArguments();
+		for (int i = 0; i < params.length; ++i) {
+			ParameterDefinition param = params[i];
+			RawFunctionTypeParam p = new RawFunctionTypeParam();
+			p.uuid = uuid;
+			p.ord = i;
+			p.type = param.getDataType().getPathName();
+			p.name = param.getName();
+			state.functypesParams.add(p);
+		}
 	}
 
 	private void exportStructFields(State state, UUID uuid, Composite dt) {

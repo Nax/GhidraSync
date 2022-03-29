@@ -39,6 +39,7 @@ public class Serializer {
 	private static void runList(Path dir, State state, RunFunction func) throws IOException, ReflectiveOperationException {
 		func.run(dir, RawMemoryBlock.class, state.memory);
 		func.run(dir, RawFunction.class, state.funcs);
+		func.run(dir, RawFunctionParam.class, state.funcsParams);
 		func.run(dir, RawData.class, state.data);
 		func.run(dir, RawComment.class, state.comments);
 		func.run(dir, RawStruct.class, state.structs);
@@ -47,6 +48,7 @@ public class Serializer {
 		func.run(dir, RawEnumValue.class, state.enumsValues);
 		func.run(dir, RawTypedef.class, state.typedefs);
 		func.run(dir, RawFunctionType.class, state.functypes);
+		func.run(dir, RawFunctionTypeParam.class, state.functypesParams);
 	}
 
 	private static <T> void serializeList(Path dir, Class<T> klass, ArrayList<T> list) throws IOException, ReflectiveOperationException {
