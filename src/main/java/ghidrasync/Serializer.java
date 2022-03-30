@@ -54,7 +54,7 @@ public class Serializer {
 	private static <T> void serializeList(Path dir, Class<T> klass, ArrayList<T> list) throws IOException, ReflectiveOperationException {
 		Serializable ann = klass.getAnnotation(Serializable.class);
 		CSVPrinter printer = createPrinter(dir, ann.name() + ".csv");
-		Field[] fields = klass.getDeclaredFields();
+		Field[] fields = klass.getFields();
 		Arrays.sort(fields, Comparator.comparingInt(Serializer::fieldIndex));
 		printer.printRecord(Stream.of(fields).map(Field::getName).toArray());
 		for (T elem : list) {
@@ -70,7 +70,7 @@ public class Serializer {
 	private static <T> void deserializeList(Path dir, Class<T> klass, ArrayList<T> list) throws IOException, ReflectiveOperationException {
 		Serializable ann = klass.getAnnotation(Serializable.class);
 		CSVParser parser = createParser(dir, ann.name() + ".csv");
-		Field[] fields = klass.getDeclaredFields();
+		Field[] fields = klass.getFields();
 		Arrays.sort(fields, Comparator.comparingInt(Serializer::fieldIndex));
 		Iterator<CSVRecord> iter = parser.iterator();
 		while (iter.hasNext()) {

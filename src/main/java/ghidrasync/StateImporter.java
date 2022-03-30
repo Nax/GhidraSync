@@ -1,6 +1,7 @@
 package ghidrasync;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
@@ -15,6 +16,8 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.data.CategoryPath;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.EnumDataType;
+import ghidra.program.model.data.ProgramBasedDataTypeManager;
+import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
@@ -25,14 +28,15 @@ import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
 import ghidrasync.exception.ImportException;
 import ghidrasync.exception.SyncException;
-import ghidrasync.state.RawEnum;
-import ghidrasync.state.RawFunction;
-import ghidrasync.state.RawMemoryBlock;
-
+import ghidrasync.state.*;
 public class StateImporter {
     private TaskMonitor     monitor;
     private Program         program;
     private TypeMapper      typeMapper;
+
+    private static interface DataTypeFunction {
+        public DataType run(CategoryPath path, String name, RawType data);
+    }
 
 	public StateImporter(PluginTool aTool, Program aProgram, TaskMonitor aMonitor) {
 		program = aProgram;
@@ -53,6 +57,7 @@ public class StateImporter {
          */
         for (RawMemoryBlock rmb : state.memory)
             importMemory(rmb);
+        makeTypes(state);
         for (RawEnum re : state.enums)
             importEnum(re);
         //for (RawFunction rf : state.funcs)
@@ -60,6 +65,35 @@ public class StateImporter {
         typeMapper.save();
         program.getProgramUserData().endTransaction(transaction2);
         program.endTransaction(transaction, true);
+    }
+
+    private void makeTypes(State state) throws SyncException {
+        makeType(state.enums, (path, name, t) -> new EnumDataType(path, name, ((RawEnum)t).size));
+        makeType(state.structs, (path, name, t) -> new StructureDataType(path, name, ((RawStruct)t).size));
+    }
+
+    private void makeType(ArrayList<? extends RawType> data, DataTypeFunction factory) throws SyncException {
+        ProgramBasedDataTypeManager types = program.getDataTypeManager();
+    
+        for (RawType t : data) {
+            DataType dt = typeMapper.getType(t.uuid);
+            CategoryPath path = new CategoryPath(t.name);
+            if (dt == null)
+            {
+                dt = types.getDataType(path.getParent(), path.getName());
+                if (dt == null) {
+                    dt = factory.run(path.getParent(), path.getName(), t);
+                    types.addDataType(dt, null);
+                }
+                typeMapper.update(dt, t.uuid);
+            } else {
+                try {
+                    dt.setCategoryPath(path);
+                } catch (DuplicateNameException e) {
+                    throw new SyncException("Duplicate type: " + t.name);
+                }
+            }
+        }
     }
 
     private void importMemory(RawMemoryBlock rmb) throws SyncException, LockException {
@@ -110,13 +144,13 @@ public class StateImporter {
     }
 
     private void importEnum(RawEnum re) {
-        DataType dt = typeMapper.getType(re.uuid);
-        if (dt == null) {
-            EnumDataType e = new EnumDataType(re.name, re.size);
-            program.getDataTypeManager().addDataType(e, null);
-            typeMapper.update(e, re.uuid);
-            dt = e;
-        }
+        //DataType dt = typeMapper.getType(re.uuid);
+        //if (dt == null) {
+        //    EnumDataType e = new EnumDataType(re.name, re.size);
+        //    program.getDataTypeManager().addDataType(e, null);
+        //    typeMapper.update(e, re.uuid);
+        //    dt = e;
+        //}
     }
 
     private void importFunction(RawFunction func) {
