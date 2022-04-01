@@ -1,11 +1,9 @@
 package ghidrasync;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 
-import ghidra.app.cmd.data.CreateDataCmd;
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
 import ghidra.app.cmd.memory.AddFileBytesMemoryBlockCmd;
@@ -23,7 +21,6 @@ import ghidra.program.model.data.Composite;
 import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeComponent;
 import ghidra.program.model.data.DataTypeManager;
-import ghidra.program.model.data.DataTypePath;
 import ghidra.program.model.data.DataUtilities;
 import ghidra.program.model.data.Enum;
 import ghidra.program.model.data.EnumDataType;
@@ -37,11 +34,10 @@ import ghidra.program.model.data.ProgramBasedDataTypeManager;
 import ghidra.program.model.data.Structure;
 import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.TypedefDataType;
-import ghidra.program.model.data.Undefined;
 import ghidra.program.model.data.UnionDataType;
+import ghidra.program.model.listing.CodeUnit;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
-import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Parameter;
 import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.listing.Program;
@@ -51,7 +47,6 @@ import ghidra.program.model.symbol.Symbol;
 import ghidra.program.model.symbol.SymbolTable;
 import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.InvalidNameException;
-import ghidra.util.Msg;
 import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.exception.InvalidInputException;
 import ghidra.util.task.TaskMonitor;
@@ -121,6 +116,10 @@ public class StateImporter {
                 importFunction(x);
             for (RawFunctionParam x : state.funcsParams)
                 importFunctionParam(x);
+            
+            for (RawComment x : state.comments)
+                importComment(x);
+
         } catch(Exception e) {
             program.getProgramUserData().endTransaction(transaction2);
             program.endTransaction(transaction, false);
@@ -358,7 +357,7 @@ public class StateImporter {
                 for (int i = 0; i < params.length; ++i)
                     newParams[i] = params[i];
                 for (int i = params.length; i < newParams.length; ++i)
-                    newParams[i] = new ParameterDefinitionImpl("_tmpArg" + Integer.toString(i), Undefined.getUndefinedDataType(1), "");
+                    newParams[i] = new ParameterDefinitionImpl(null, DataType.DEFAULT, "");
             }
             def.setArguments(newParams);
         }
@@ -463,7 +462,7 @@ public class StateImporter {
                     for (int i = 0; i < params.length; ++i)
                         newParams[i] = params[i];
                     for (int i = params.length; i < newParams.length; ++i)
-                        newParams[i] = new ParameterImpl("_tmpArg" + Integer.toString(i), Undefined.getUndefinedDataType(1), program);
+                        newParams[i] = new ParameterImpl(null, DataType.DEFAULT, program);
                 }
                 f.replaceParameters(Arrays.asList(newParams), Function.FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.USER_DEFINED);
             }
@@ -489,6 +488,32 @@ public class StateImporter {
             }
         } catch (Exception e) {
             throw new SyncException(e.getMessage());
+        }
+    }
+
+    private void importComment(RawComment raw) {
+        Address addr = program.getAddressFactory().getAddress(raw.addr);
+        Data d = DataUtilities.getDataAtAddress(program, addr);
+        if (d != null) {
+            int commentType = CodeUnit.NO_COMMENT;
+            switch (raw.type) {
+                case 'e':
+                    commentType = CodeUnit.EOL_COMMENT;
+                    break;
+                case 'b':
+                commentType = CodeUnit.PRE_COMMENT;
+                break;
+                case 'a':
+                commentType = CodeUnit.POST_COMMENT;
+                break;
+                case 'r':
+                commentType = CodeUnit.REPEATABLE_COMMENT;
+                break;
+                case 'p':
+                commentType = CodeUnit.PLATE_COMMENT;
+                break;
+            }
+            d.setComment(commentType, raw.comment);
         }
     }
 }
