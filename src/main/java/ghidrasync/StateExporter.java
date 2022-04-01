@@ -115,6 +115,9 @@ public class StateExporter {
 			rf.name = f.getName();
 			rf.cc = f.getCallingConventionName();
 			rf.returnType = f.getReturnType().getPathName();
+			rf.argCount = f.getParameterCount();
+			rf.variadic = f.hasVarArgs();
+			rf.noreturn = f.hasNoReturn();
 			state.funcs.add(rf);
 			exportFunctionParams(state, f);
 		}
@@ -258,7 +261,7 @@ public class StateExporter {
 				continue;
 			RawStructField rsf = new RawStructField();
 			rsf.uuid = uuid;
-			rsf.name = c.getFieldName();
+			rsf.name = Utils.strNoNull(c.getFieldName());
 			rsf.offset = c.getOffset();
 			rsf.length = c.getLength();
 			rsf.type = c.getDataType().getPathName();

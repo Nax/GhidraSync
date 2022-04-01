@@ -42,6 +42,8 @@ import ghidra.program.model.data.UnionDataType;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Listing;
+import ghidra.program.model.listing.Parameter;
+import ghidra.program.model.listing.ParameterImpl;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.symbol.SourceType;
@@ -115,8 +117,10 @@ public class StateImporter {
             for (RawData x : state.data)
                 importData(x);
             
-            //for (RawFunction rf : state.funcs)
-            //    importFunction(rf);
+            for (RawFunction x : state.funcs)
+                importFunction(x);
+            for (RawFunctionParam x : state.funcsParams)
+                importFunctionParam(x);
         } catch(Exception e) {
             program.getProgramUserData().endTransaction(transaction2);
             program.endTransaction(transaction, false);
@@ -165,13 +169,17 @@ public class StateImporter {
         DataTypeManager[] managers = dtms.getDataTypeManagers();
         DataType dt = null;
         
-        for (DataTypeManager dtm : managers) {
-            dt = dtm.getDataType(type);
-            if (dt != null)
-                break;
+        if (type.equals("/undefined")) {
+            dt = DataType.DEFAULT;
+        } else {
+            for (DataTypeManager dtm : managers) {
+                dt = dtm.getDataType(type);
+                if (dt != null)
+                    break;
+            }
         }
         if (dt == null) {
-            throw new SyncException("Could not find type " + str);
+            throw new SyncException("Could not find type " + type);
         }
 
         /* Handle pointers and arrays */
@@ -306,7 +314,7 @@ public class StateImporter {
                 }
                 s.replaceAtOffset(raw.offset, t, raw.length, raw.name, raw.comment);
             } else {
-                if (!comp.getFieldName().equals(raw.name)) {
+                if (!Utils.strNoNull(comp.getFieldName()).equals(raw.name)) {
                     try
                     {
                         comp.setFieldName(raw.name);
@@ -406,24 +414,81 @@ public class StateImporter {
         }
     }
 
-    private void importFunction(RawFunction func) {
-        Address addr = program.getAddressFactory().getAddress(func.addr);
-
-        DisassembleCommand cmdDisasm = new DisassembleCommand(addr, null, true);
-        cmdDisasm.applyTo(program, monitor);
-
-        CreateFunctionCmd cmdCreateFunc = new CreateFunctionCmd(addr, false);
-        cmdCreateFunc.applyTo(program, monitor);
-    
+    private void importFunction(RawFunction raw) throws SyncException {
+        Address addr = program.getAddressFactory().getAddress(raw.addr);
         Function f = program.getFunctionManager().getFunctionAt(addr);
+        DataType returnType = parseType(raw.returnType);
+
         if (f == null) {
-            Msg.showError(this, null, "Error", "Could not create function " + func.name);
-        } else {
-            try {
-                f.setName(func.name, SourceType.USER_DEFINED);
-            } catch (DuplicateNameException e) {
-            } catch (InvalidInputException e) {
+            DisassembleCommand cmdDisasm = new DisassembleCommand(addr, null, true);
+            cmdDisasm.applyTo(program, monitor);
+
+            CreateFunctionCmd cmdCreateFunc = new CreateFunctionCmd(addr, false);
+            cmdCreateFunc.applyTo(program, monitor);
+        
+            f = program.getFunctionManager().getFunctionAt(addr);
+        }
+        if (f == null) {
+            throw new SyncException("Could not create function " + raw.name);
+        }
+ 
+        try {
+            /* Properties */
+            if (!f.getName().equals(raw.name)) {
+                f.setName(raw.name, SourceType.USER_DEFINED);
             }
+            if (!f.getReturnType().getPathName().equals(returnType.getPathName())) {
+                f.setReturnType(returnType, SourceType.USER_DEFINED);
+            }
+            if (!f.getCallingConventionName().equals(raw.cc)) {
+                f.setCallingConvention(raw.cc);
+            }
+            if (f.hasVarArgs() != raw.variadic) {
+                f.setVarArgs(raw.variadic);
+            }
+            if (f.hasNoReturn() != raw.noreturn) {
+                f.setNoReturn(raw.noreturn);
+            }
+
+            /* Arg count */
+            Parameter[] params = f.getParameters();
+            if (f.getParameterCount() != raw.argCount) {
+                Parameter[] newParams = new Parameter[raw.argCount];
+                if (newParams.length < params.length) {
+                    /* Less args */
+                    for (int i = 0; i < newParams.length; ++i)
+                        newParams[i] = params[i];
+                } else {
+                    /* More args */
+                    for (int i = 0; i < params.length; ++i)
+                        newParams[i] = params[i];
+                    for (int i = params.length; i < newParams.length; ++i)
+                        newParams[i] = new ParameterImpl("_tmpArg" + Integer.toString(i), Undefined.getUndefinedDataType(1), program);
+                }
+                f.replaceParameters(Arrays.asList(newParams), Function.FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.USER_DEFINED);
+            }
+        } catch (Exception e) {
+            throw new SyncException(e.getMessage());
+        }
+
+    }
+
+    private void importFunctionParam(RawFunctionParam raw) throws SyncException {
+        Address addr = program.getAddressFactory().getAddress(raw.addr);
+        Function f = program.getFunctionManager().getFunctionAt(addr);
+        Parameter[] params = f.getParameters();
+        Parameter p = params[raw.ord];
+        DataType t = parseType(raw.type);
+
+        try {
+            if (!p.getName().equals(raw.name)) {
+                p.setName(raw.name, SourceType.USER_DEFINED);
+            }
+            if (!p.getDataType().getPathName().equals(t.getPathName())) {
+                p.setDataType(t, SourceType.USER_DEFINED);
+            }
+        } catch (Exception e) {
+            throw new SyncException(e.getMessage());
         }
     }
 }
