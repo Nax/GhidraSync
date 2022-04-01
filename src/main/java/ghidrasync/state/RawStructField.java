@@ -9,4 +9,5 @@ public class RawStructField {
 	@SerializableField(index = 2) public int	offset;
 	@SerializableField(index = 3) public int	length;
 	@SerializableField(index = 4) public String	type;
+	@SerializableField(index = 5) public String comment;
 }

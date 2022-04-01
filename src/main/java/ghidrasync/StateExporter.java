@@ -153,6 +153,7 @@ public class StateExporter {
 			rd.addr = d.getAddress().toString();
 			rd.name = s[0].getName();
 			rd.type = d.getDataType().getPathName();
+			rd.size = d.getLength();
 			state.data.add(rd);
 		}
 	}
@@ -198,6 +199,7 @@ public class StateExporter {
 					rs.name = dt.getPathName();
 					rs.size = dt.getLength();
 					rs.union = !!(dt instanceof Union);
+					rs.comment = dt.getDescription();
 					state.structs.add(rs);
 					exportStructFields(state, uuid, (Composite)dt);
 				} else if (dt instanceof Enum) {
@@ -206,6 +208,7 @@ public class StateExporter {
 					re.uuid = uuid;
 					re.name = e.getPathName();
 					re.size = e.getLength();
+					re.comment = e.getDescription();
 					state.enums.add(re);
 					exportEnumValues(state, uuid, (Enum)dt);
 				} else if (dt instanceof TypeDef) {
@@ -214,6 +217,7 @@ public class StateExporter {
 					rt.uuid = uuid;
 					rt.name = tdt.getPathName();
 					rt.typedef = tdt.getBaseDataType().getPathName();
+					rt.comment = tdt.getDescription();
 					state.typedefs.add(rt);
 				} else if (dt instanceof FunctionDefinition) {
 					FunctionDefinition fd = (FunctionDefinition)dt;
@@ -224,6 +228,7 @@ public class StateExporter {
 					rft.returnType = fd.getReturnType().getPathName();
 					rft.argCount = fd.getArguments().length;
 					rft.variadic = fd.hasVarArgs();
+					rft.comment = fd.getDescription();
 					state.functypes.add(rft);
 					exportFunctionTypeParams(state, uuid, fd);
 				}
@@ -257,6 +262,7 @@ public class StateExporter {
 			rsf.offset = c.getOffset();
 			rsf.length = c.getLength();
 			rsf.type = c.getDataType().getPathName();
+			rsf.comment = c.getComment();
 			state.structsFields.add(rsf);
 		}
 	}
@@ -267,6 +273,7 @@ public class StateExporter {
 			rev.uuid = uuid;
 			rev.name = name;
 			rev.value = e.getValue(name);
+			rev.comment = e.getComment(name);
 			state.enumsValues.add(rev);
 		}
 	}

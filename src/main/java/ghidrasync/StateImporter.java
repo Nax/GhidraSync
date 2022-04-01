@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 
+import ghidra.app.cmd.data.CreateDataCmd;
 import ghidra.app.cmd.disassemble.DisassembleCommand;
 import ghidra.app.cmd.function.CreateFunctionCmd;
 import ghidra.app.cmd.memory.AddFileBytesMemoryBlockCmd;
@@ -23,6 +24,7 @@ import ghidra.program.model.data.DataType;
 import ghidra.program.model.data.DataTypeComponent;
 import ghidra.program.model.data.DataTypeManager;
 import ghidra.program.model.data.DataTypePath;
+import ghidra.program.model.data.DataUtilities;
 import ghidra.program.model.data.Enum;
 import ghidra.program.model.data.EnumDataType;
 import ghidra.program.model.data.FunctionDefinition;
@@ -37,10 +39,15 @@ import ghidra.program.model.data.StructureDataType;
 import ghidra.program.model.data.TypedefDataType;
 import ghidra.program.model.data.Undefined;
 import ghidra.program.model.data.UnionDataType;
+import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.Listing;
 import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.model.symbol.SourceType;
+import ghidra.program.model.symbol.Symbol;
+import ghidra.program.model.symbol.SymbolTable;
+import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.util.InvalidNameException;
 import ghidra.util.Msg;
 import ghidra.util.exception.DuplicateNameException;
@@ -104,6 +111,9 @@ public class StateImporter {
             for (RawStructField x : state.structsFields)
                 importStructField(x);
             /* Typedefs are already imported */
+
+            for (RawData x : state.data)
+                importData(x);
             
             //for (RawFunction rf : state.funcs)
             //    importFunction(rf);
@@ -239,18 +249,21 @@ public class StateImporter {
             CategoryPath path = new CategoryPath(re.name);
             en.replaceWith(new EnumDataType(path.getParent(), path.getName(), re.size));
         }
+        if (!re.comment.isEmpty() && !en.getDescription().equals(re.comment)) {
+            en.setDescription(re.comment);
+        }
     }
 
     private void importEnumValue(RawEnumValue val) {
         Enum en = (Enum)typeMapper.getType(val.uuid);
         try {
             long old = en.getValue(val.name);
-            if (old != val.value) {
+            if (old != val.value || (!val.comment.isEmpty() && !val.comment.equals(en.getComment(val.name)))) {
                 en.remove(val.name);
-                en.add(val.name, val.value);
+                en.add(val.name, val.value, val.comment);
             }
         } catch (NoSuchElementException e) {
-            en.add(val.name, val.value);
+            en.add(val.name, val.value, val.comment);
         }
     }
 
@@ -264,6 +277,9 @@ public class StateImporter {
             while (raw.size < s.getLength()) {
                 s.deleteAtOffset(raw.size);
             }
+        }
+        if (!raw.comment.isEmpty() && !c.getDescription().equals(raw.comment)) {
+            c.setDescription(raw.comment);
         }
     }
 
@@ -288,15 +304,18 @@ public class StateImporter {
                         break;
                     s.deleteAtOffset(oldComponent.getOffset());
                 }
-                s.replaceAtOffset(raw.offset, t, raw.length, raw.name, "");
+                s.replaceAtOffset(raw.offset, t, raw.length, raw.name, raw.comment);
             } else {
-                if (comp.getFieldName() != raw.name) {
+                if (!comp.getFieldName().equals(raw.name)) {
                     try
                     {
                         comp.setFieldName(raw.name);
                     } catch (DuplicateNameException e) {
                         throw new SyncException("Duplicate struct field name: " + s.getName() + "." + raw.name);
                     }
+                }
+                if (!raw.comment.isEmpty() && !raw.comment.equals(comp.getComment())) {
+                    comp.setComment(raw.comment);
                 }
             }
         }
@@ -335,6 +354,11 @@ public class StateImporter {
             }
             def.setArguments(newParams);
         }
+
+        /* Comment */
+        if (!raw.comment.isEmpty() && !raw.comment.equals(def.getDescription())) {
+            def.setDescription(raw.comment);
+        }
     }
 
     private void importFunctionTypeParam(RawFunctionTypeParam raw) throws SyncException {
@@ -348,6 +372,37 @@ public class StateImporter {
         }
         if (!d.getDataType().getPathName().equals(t.getPathName())) {
             d.setDataType(t);
+        }
+    }
+
+    private void importData(RawData raw) throws SyncException {
+        Address addr = program.getAddressFactory().getAddress(raw.addr);
+        Data d = DataUtilities.getDataAtAddress(program, addr);
+        DataType t = parseType(raw.type);
+        if (d == null || !d.getDataType().getPathName().equals(t.getPathName())) {
+            try {
+                d = DataUtilities.createData(program, addr, t, raw.size, false, DataUtilities.ClearDataMode.CLEAR_ALL_CONFLICT_DATA);
+            } catch (CodeUnitInsertionException e) {
+                throw new SyncException("Code conflict when applying data at " + raw.addr);
+            }
+        }
+
+        if (d.getNames().length == 0 || !d.getNames()[0].equals(raw.name)) {
+            SymbolTable st = program.getSymbolTable();
+            if (st.hasSymbol(addr)) {
+                Symbol s = st.getSymbols(addr)[0];
+                try {
+                    s.setName(raw.name, SourceType.USER_DEFINED);
+                } catch (Exception e) {
+                    throw new SyncException("Error renaming symbol " + s.getName() + " to " + raw.name);
+                }
+            } else {
+                try {
+                    st.createLabel(addr, raw.name, SourceType.USER_DEFINED);
+                } catch (InvalidInputException e) {
+                    throw new SyncException("Error creating symbol " + raw.name);
+                }
+            }
         }
     }
 

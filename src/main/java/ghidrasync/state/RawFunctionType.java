@@ -6,4 +6,5 @@ public class RawFunctionType extends RawType {
     @SerializableField(index = 3) public String     returnType;
     @SerializableField(index = 4) public int        argCount;
     @SerializableField(index = 5) public boolean    variadic;
+    @SerializableField(index = 6) public String     comment;
 }
