@@ -180,54 +180,58 @@ public class StateExporter {
 
 	private void exportTypes(State state) {
 		int t = program.getProgramUserData().startTransaction();
-
 		TypeMapper typeMapper = new TypeMapper(program);
-		ProgramBasedDataTypeManager typeManager = program.getDataTypeManager();
 
-		Iterator<DataType> iter = typeManager.getAllDataTypes();
-		while (iter.hasNext()) {
-			DataType dt = iter.next();
-			if (dt.getUniversalID() == null)
-				continue;
-			UUID uuid = typeMapper.getUUID(dt);
-			
-			if (dt instanceof Composite) {
-				RawStruct rs = new RawStruct();
-				rs.uuid = uuid;
-				rs.name = dt.getPathName();
-				rs.size = dt.getLength();
-				rs.union = !!(dt instanceof Union);
-				state.structs.add(rs);
-				exportStructFields(state, uuid, (Composite)dt);
-			} else if (dt instanceof Enum) {
-				Enum e = (Enum)dt;
-				RawEnum re = new RawEnum();
-				re.uuid = uuid;
-				re.name = e.getPathName();
-				re.size = e.getLength();
-				state.enums.add(re);
-				exportEnumValues(state, uuid, (Enum)dt);
-			} else if (dt instanceof TypeDef) {
-				TypeDef tdt = (TypeDef)dt;
-				RawTypedef rt = new RawTypedef();
-				rt.uuid = uuid;
-				rt.name = tdt.getPathName();
-				rt.typedef = tdt.getBaseDataType().getPathName();
-				state.typedefs.add(rt);
-			} else if (dt instanceof FunctionDefinition) {
-				FunctionDefinition fd = (FunctionDefinition)dt;
-				RawFunctionType rft = new RawFunctionType();
-				rft.uuid = uuid;
-				rft.name = fd.getPathName();
-				rft.cc = fd.getGenericCallingConvention().name();
-				rft.returnType = fd.getReturnType().getPathName();
-				state.functypes.add(rft);
-				exportFunctionTypeParams(state, uuid, fd);
+		try {
+			ProgramBasedDataTypeManager typeManager = program.getDataTypeManager();
+
+			Iterator<DataType> iter = typeManager.getAllDataTypes();
+			while (iter.hasNext()) {
+				DataType dt = iter.next();
+				if (dt.getUniversalID() == null)
+					continue;
+				UUID uuid = typeMapper.getUUID(dt);
+				
+				if (dt instanceof Composite) {
+					RawStruct rs = new RawStruct();
+					rs.uuid = uuid;
+					rs.name = dt.getPathName();
+					rs.size = dt.getLength();
+					rs.union = !!(dt instanceof Union);
+					state.structs.add(rs);
+					exportStructFields(state, uuid, (Composite)dt);
+				} else if (dt instanceof Enum) {
+					Enum e = (Enum)dt;
+					RawEnum re = new RawEnum();
+					re.uuid = uuid;
+					re.name = e.getPathName();
+					re.size = e.getLength();
+					state.enums.add(re);
+					exportEnumValues(state, uuid, (Enum)dt);
+				} else if (dt instanceof TypeDef) {
+					TypeDef tdt = (TypeDef)dt;
+					RawTypedef rt = new RawTypedef();
+					rt.uuid = uuid;
+					rt.name = tdt.getPathName();
+					rt.typedef = tdt.getBaseDataType().getPathName();
+					state.typedefs.add(rt);
+				} else if (dt instanceof FunctionDefinition) {
+					FunctionDefinition fd = (FunctionDefinition)dt;
+					RawFunctionType rft = new RawFunctionType();
+					rft.uuid = uuid;
+					rft.name = fd.getPathName();
+					rft.cc = fd.getGenericCallingConvention().name();
+					rft.returnType = fd.getReturnType().getPathName();
+					rft.argCount = fd.getArguments().length;
+					rft.variadic = fd.hasVarArgs();
+					state.functypes.add(rft);
+					exportFunctionTypeParams(state, uuid, fd);
+				}
 			}
+			typeMapper.save();
+		} finally {
+			program.getProgramUserData().endTransaction(t);
 		}
-
-		typeMapper.save();
-		program.getProgramUserData().endTransaction(t);
 	}
 
 	private void exportFunctionTypeParams(State state, UUID uuid, FunctionDefinition f) {
@@ -251,6 +255,7 @@ public class StateExporter {
 			rsf.uuid = uuid;
 			rsf.name = c.getFieldName();
 			rsf.offset = c.getOffset();
+			rsf.length = c.getLength();
 			rsf.type = c.getDataType().getPathName();
 			state.structsFields.add(rsf);
 		}
